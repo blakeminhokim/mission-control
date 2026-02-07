@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
 import { callGateway } from "../../../lib/gateway";
 
+interface GatewayCronJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  schedule?: { kind?: string; expr?: string; everyMs?: number; tz?: string };
+  state?: { nextRunAtMs?: number; lastRunAtMs?: number; lastStatus?: string; lastError?: string };
+  payload?: { kind?: string; text?: string; message?: string };
+}
+
 export async function GET() {
   try {
-    const result = await callGateway("cron.list", { includeDisabled: true });
-    
+    const result = await callGateway("cron.list", { includeDisabled: true }) as { jobs?: GatewayCronJob[] } | null;
+
     // Transform cron jobs for the frontend
-    const jobs = (result?.jobs || []).map((job: any) => ({
+    const jobs = (result?.jobs || []).map((job: GatewayCronJob) => ({
       id: job.id,
       name: job.name,
       enabled: job.enabled,

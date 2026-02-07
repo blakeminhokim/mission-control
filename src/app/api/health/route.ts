@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { callGateway } from "../../../lib/gateway";
 
 const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:8080";
 
@@ -6,13 +7,8 @@ export async function GET() {
   let gatewayStatus = "unknown";
 
   try {
-    const res = await fetch(`${GATEWAY_URL}/rpc`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "ping", params: {} }),
-      signal: AbortSignal.timeout(3000),
-    });
-    gatewayStatus = res.ok ? "connected" : `error:${res.status}`;
+    await callGateway("ping", {});
+    gatewayStatus = "connected";
   } catch {
     gatewayStatus = "unreachable";
   }

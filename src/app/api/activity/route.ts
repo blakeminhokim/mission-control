@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-
-const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:8080";
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
+import { callGateway } from "../../../lib/gateway";
 
 interface GatewaySession {
   id: string;
@@ -22,24 +20,8 @@ interface GatewaySession {
 
 export async function GET() {
   try {
-    const res = await fetch(`${GATEWAY_URL}/rpc`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(GATEWAY_TOKEN && { Authorization: `Bearer ${GATEWAY_TOKEN}` }),
-      },
-      body: JSON.stringify({
-        method: "sessions.list",
-        params: { limit: 50, messageLimit: 0 },
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Gateway returned ${res.status}`);
-    }
-
-    const data = await res.json();
-    const sessions = (data.result?.sessions || []).map((s: GatewaySession) => ({
+    const result = await callGateway("sessions.list", { limit: 50, messageLimit: 0 }) as { sessions?: GatewaySession[] } | null;
+    const sessions = (result?.sessions || []).map((s: GatewaySession) => ({
       id: s.id,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
@@ -56,7 +38,7 @@ export async function GET() {
   } catch (error) {
     console.error("Failed to fetch activity:", error);
     return NextResponse.json(
-      { error: "Failed to connect to OpenClaw gateway", sessions: [] },
+      { error: error instanceof Error ? error.message : "Failed to connect", sessions: [] },
       { status: 500 }
     );
   }

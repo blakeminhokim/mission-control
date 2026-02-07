@@ -10,14 +10,14 @@ function getWsUrl(): string {
   return url.toString();
 }
 
-interface RpcResponse {
+interface RpcMessage {
   type: string;
   id: string;
-  result?: any;
+  result?: unknown;
   error?: { message: string; code?: number };
 }
 
-export async function callGateway(method: string, params: any = {}): Promise<any> {
+export async function callGateway(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const wsUrl = getWsUrl();
     const ws = new WebSocket(wsUrl);
@@ -52,7 +52,7 @@ export async function callGateway(method: string, params: any = {}): Promise<any
 
     ws.on("message", (data) => {
       try {
-        const msg = JSON.parse(data.toString());
+        const msg: RpcMessage = JSON.parse(data.toString());
 
         // Handle connect response
         if (msg.id === "connect" && msg.type === "res") {
@@ -83,7 +83,7 @@ export async function callGateway(method: string, params: any = {}): Promise<any
             resolve(msg.result);
           }
         }
-      } catch (e) {
+      } catch {
         // Ignore parse errors for other messages
       }
     });
