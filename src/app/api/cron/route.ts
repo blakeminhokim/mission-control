@@ -1,53 +1,12 @@
 import { NextResponse } from "next/server";
-
-const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:8080";
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
-
-interface CronJob {
-  id: string;
-  name: string;
-  enabled: boolean;
-  schedule?: {
-    kind?: string;
-    expr?: string;
-    everyMs?: number;
-    tz?: string;
-  };
-  state?: {
-    nextRunAtMs?: number;
-    lastRunAtMs?: number;
-    lastStatus?: string;
-    lastError?: string;
-  };
-  payload?: {
-    kind?: string;
-    text?: string;
-    message?: string;
-  };
-}
+import { callGateway } from "../../../lib/gateway";
 
 export async function GET() {
   try {
-    const res = await fetch(`${GATEWAY_URL}/rpc`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(GATEWAY_TOKEN && { Authorization: `Bearer ${GATEWAY_TOKEN}` }),
-      },
-      body: JSON.stringify({
-        method: "cron.list",
-        params: { includeDisabled: true },
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Gateway returned ${res.status}`);
-    }
-
-    const data = await res.json();
+    const result = await callGateway("cron.list", { includeDisabled: true });
     
     // Transform cron jobs for the frontend
-    const jobs = (data.result?.jobs || []).map((job: CronJob) => ({
+    const jobs = (result?.jobs || []).map((job: any) => ({
       id: job.id,
       name: job.name,
       enabled: job.enabled,
@@ -66,7 +25,7 @@ export async function GET() {
   } catch (error) {
     console.error("Failed to fetch cron jobs:", error);
     return NextResponse.json(
-      { error: "Failed to connect to OpenClaw gateway", jobs: [] },
+      { error: error instanceof Error ? error.message : "Failed to connect", jobs: [] },
       { status: 500 }
     );
   }
