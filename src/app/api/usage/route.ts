@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { callGateway } from "../../../lib/gateway";
 
+interface GatewaySession {
+  usage?: {
+    totalTokens?: number;
+    cost?: { total?: number };
+  };
+}
+
 export async function GET() {
   try {
-    const result = await callGateway("sessions.list", { limit: 10, messageLimit: 0 });
+    const result = await callGateway("sessions.list", { limit: 10, messageLimit: 0 }) as { sessions?: GatewaySession[] } | null;
     const sessions = result?.sessions || [];
 
     // Aggregate usage from recent sessions
     let totalTokens = 0;
     let totalCost = 0;
 
-    sessions.forEach((session: any) => {
+    sessions.forEach((session: GatewaySession) => {
       if (session.usage) {
         totalTokens += session.usage.totalTokens || 0;
         totalCost += session.usage.cost?.total || 0;
