@@ -1,38 +1,49 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:8080";
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 
 export async function GET() {
   try {
-    // Get session status which includes token usage
-    const { stdout } = await execAsync("openclaw status --json 2>/dev/null || echo '{}'");
-    
-    let usage = {
-      todayTokens: 0,
-      todayCost: 0,
-      sessions: 0,
-    };
+    const res = await fetch(`${GATEWAY_URL}/rpc`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(GATEWAY_TOKEN && { Authorization: `Bearer ${GATEWAY_TOKEN}` }),
+      },
+      body: JSON.stringify({
+        method: "sessions.list",
+        params: { limit: 10, messageLimit: 0 },
+      }),
+    });
 
-    try {
-      const data = JSON.parse(stdout);
-      if (data.usage) {
-        usage = {
-          todayTokens: data.usage.totalTokens || 0,
-          todayCost: data.usage.cost?.total || 0,
-          sessions: data.sessions?.length || 0,
-        };
-      }
-    } catch {
-      // Parse error, return defaults
+    if (!res.ok) {
+      throw new Error(`Gateway returned ${res.status}`);
     }
 
-    return NextResponse.json(usage);
+    const data = await res.json();
+    const sessions = data.result?.sessions || [];
+
+    // Aggregate usage from recent sessions
+    let totalTokens = 0;
+    let totalCost = 0;
+
+    sessions.forEach((session: any) => {
+      if (session.usage) {
+        totalTokens += session.usage.totalTokens || 0;
+        totalCost += session.usage.cost?.total || 0;
+      }
+    });
+
+    return NextResponse.json({
+      todayTokens: totalTokens,
+      todayCost: totalCost,
+      sessions: sessions.length,
+    });
   } catch (error) {
-    console.error("Failed to get usage:", error);
+    console.error("Failed to fetch usage:", error);
     return NextResponse.json(
-      { error: "Failed to fetch usage data" },
+      { todayTokens: 0, todayCost: 0, sessions: 0, error: "Failed to connect" },
       { status: 500 }
     );
   }

@@ -1,32 +1,61 @@
 # Mission Control Dashboard
 
-A lightweight web dashboard to monitor OpenClaw's scheduled tasks.
+A mobile-first web dashboard to monitor your OpenClaw agent's scheduled tasks and token usage.
 
 ## Features
 
-- **Calendar View** - Weekly calendar showing scheduled cron jobs
-- **Job List** - All jobs with status indicators
-- **Job Details** - Click any event to see full details, errors, payload
+- **📅 Calendar View** — Weekly calendar showing scheduled cron jobs
+- **📊 Token Tracker** — Monitor token usage and costs
+- **📱 Mobile-First** — Responsive design with bottom nav
+- **🌙 Dark Theme** — Easy on the eyes
 
-## Stack
+## Setup
 
-- NextJS 14 (App Router)
-- Tailwind CSS
-- No database — direct API proxy to OpenClaw
+### Environment Variables
 
-## Quick Start
+Set these in Railway (or `.env.local` for local dev):
 
 ```bash
-cd /data/workspace/projects/mission-control
+# Required: URL of your OpenClaw gateway
+OPENCLAW_GATEWAY_URL=https://your-gateway-url.railway.app
+
+# Optional: Auth token if gateway requires it  
+OPENCLAW_GATEWAY_TOKEN=your-token
+```
+
+### Local Development
+
+```bash
 npm install
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
 
-**Requirements:**
-- OpenClaw gateway must be running locally
-- The app calls `openclaw cron list --json` via CLI
+### Deploy to Railway
+
+1. Connect this repo to Railway
+2. Set `OPENCLAW_GATEWAY_URL` to your Caesar gateway URL
+3. Deploy — Railway auto-detects NextJS
+
+## Architecture
+
+```
+Mission Control (Railway)
+        │
+        ▼ HTTP/RPC
+┌─────────────────┐
+│ OpenClaw Gateway│ (Caesar)
+│   /rpc endpoint │
+└─────────────────┘
+        │
+        ▼
+  cron.list, sessions.list
+```
+
+The dashboard calls your OpenClaw gateway's RPC API:
+- `cron.list` — Get scheduled jobs
+- `sessions.list` — Get token usage
 
 ## Project Structure
 
@@ -34,66 +63,25 @@ Open [http://localhost:3000](http://localhost:3000)
 src/
 ├── app/
 │   ├── api/
-│   │   ├── cron/route.ts    # Proxies to OpenClaw CLI
-│   │   └── health/route.ts  # Health check
-│   ├── layout.tsx
-│   ├── page.tsx             # Calendar view
-│   └── globals.css
+│   │   ├── cron/route.ts    # Proxies to gateway RPC
+│   │   └── usage/route.ts   # Token usage stats
+│   ├── layout.tsx           # Mobile-first layout
+│   └── page.tsx             # Calendar + tracker
 ├── components/
-│   ├── Calendar.tsx         # Weekly calendar
-│   ├── JobList.tsx          # Sidebar
-│   └── Sidebar.tsx          # Navigation
+│   ├── Calendar.tsx         # Weekly calendar view
+│   ├── JobList.tsx          # Job sidebar
+│   ├── TokenTracker.tsx     # Usage stats
+│   └── Sidebar.tsx          # Desktop nav
 └── lib/
     └── types.ts
 ```
 
-## Deployment
+## Stack
 
-### Local (Recommended for now)
-Run on the same machine as OpenClaw gateway:
-```bash
-npm run build
-npm start
-```
+- NextJS 14 (App Router)
+- Tailwind CSS
+- No database — calls OpenClaw gateway directly
 
-### Railway
-⚠️ **Requires gateway to be publicly accessible**
+## License
 
-The dashboard needs to reach the OpenClaw gateway. Options:
-1. Use Tailscale Funnel to expose gateway
-2. Deploy alongside OpenClaw on same server
-3. Future: WebSocket client for remote gateway access
-
-Railway config included (`railway.json`).
-
-## API Routes
-
-### GET /api/cron
-Returns all cron jobs from OpenClaw.
-
-```json
-{
-  "jobs": [
-    {
-      "id": "uuid",
-      "name": "job-name",
-      "enabled": true,
-      "scheduleKind": "cron",
-      "scheduleExpr": "0 9 * * *",
-      "timezone": "Europe/Lisbon",
-      "nextRunAtMs": 1234567890000,
-      "lastStatus": "ok"
-    }
-  ]
-}
-```
-
-### GET /api/health
-Health check for Railway deployments.
-
-## Roadmap
-
-- [ ] Remote gateway support (WebSocket client)
-- [ ] Activity feed
-- [ ] Global search (QMD integration)
-- [ ] Cron job management (create/edit/delete)
+MIT
