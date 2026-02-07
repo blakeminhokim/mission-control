@@ -13,20 +13,16 @@ import {
 } from "date-fns";
 import type { CronJob, CalendarEvent } from "@/lib/types";
 
-// Parse cron expression to get next occurrences in a date range
 function parseCronToEvents(job: CronJob, weekStart: Date, weekEnd: Date): CalendarEvent[] {
   const events: CalendarEvent[] = [];
 
   if (job.scheduleKind === "cron" && job.scheduleExpr) {
-    // Simple cron parsing for common patterns
-    // Format: minute hour day month weekday
     const parts = job.scheduleExpr.split(" ");
     if (parts.length >= 5) {
       const [minute, hour, , , weekday] = parts;
       const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
       for (const day of days) {
-        // Check if this day matches the cron weekday (0 = Sunday)
         const dayOfWeek = day.getDay();
         if (weekday === "*" || parseInt(weekday) === dayOfWeek) {
           const eventDate = new Date(day);
@@ -45,7 +41,6 @@ function parseCronToEvents(job: CronJob, weekStart: Date, weekEnd: Date): Calend
       }
     }
   } else if (job.scheduleKind === "every" && job.everyMs) {
-    // Interval-based job - show next run if within week
     if (job.nextRunAtMs) {
       const nextRun = new Date(job.nextRunAtMs);
       if (nextRun >= weekStart && nextRun <= weekEnd) {
@@ -95,16 +90,14 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  // Generate events from jobs
   const events = useMemo(() => {
     return jobs.flatMap((job) => parseCronToEvents(job, weekStart, weekEnd));
   }, [jobs, weekStart, weekEnd]);
 
-  // Group events by day
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const event of events) {
@@ -120,51 +113,54 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
   const goToToday = () => setCurrentDate(new Date());
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-semibold text-white">
-            {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d, yyyy")}
+          <h2 className="text-sm font-semibold text-white">
+            {format(weekStart, "MMM d")} &ndash; {format(weekEnd, "MMM d, yyyy")}
           </h2>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={goToPrevWeek}
-              className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded"
+              className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+              aria-label="Previous week"
             >
-              ← Prev
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
             </button>
             <button
               onClick={goToToday}
-              className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-500 rounded"
+              className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-white/[0.06] text-gray-300 hover:bg-white/[0.1] hover:text-white transition-colors"
             >
               Today
             </button>
             <button
               onClick={goToNextWeek}
-              className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded"
+              className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+              aria-label="Next week"
             >
-              Next →
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
             </button>
           </div>
         </div>
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="px-4 py-2 text-sm bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded flex items-center gap-2"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-md bg-white/[0.06] text-gray-300 hover:bg-white/[0.1] hover:text-white disabled:opacity-40 transition-colors"
         >
-          {loading ? (
-            <>
-              <span className="animate-spin">⟳</span> Loading...
-            </>
-          ) : (
-            <>↻ Refresh</>
-          )}
+          <svg className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+          </svg>
+          {loading ? "Syncing..." : "Refresh"}
         </button>
       </div>
 
       {/* Calendar Grid */}
-      <div className="flex-1 grid grid-cols-7 gap-px bg-gray-700">
+      <div className="flex-1 grid grid-cols-7 divide-x divide-white/[0.04]">
         {days.map((day) => {
           const dayKey = format(day, "yyyy-MM-dd");
           const dayEvents = eventsByDay.get(dayKey) || [];
@@ -173,60 +169,64 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
           return (
             <div
               key={dayKey}
-              className={`flex flex-col bg-gray-800 min-h-[200px] ${
-                today ? "ring-2 ring-blue-500 ring-inset" : ""
-              }`}
+              className={`flex flex-col min-h-[220px] ${today ? "bg-indigo-500/[0.04]" : ""}`}
             >
               {/* Day Header */}
-              <div
-                className={`p-2 text-center border-b border-gray-700 ${
-                  today ? "bg-blue-900/50" : ""
-                }`}
-              >
-                <div className="text-xs text-gray-400">{format(day, "EEE")}</div>
+              <div className={`px-2.5 py-2.5 text-center border-b border-white/[0.04]`}>
+                <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                  {format(day, "EEE")}
+                </div>
                 <div
-                  className={`text-lg font-medium ${
-                    today ? "text-blue-400" : "text-white"
+                  className={`text-lg font-semibold mt-0.5 ${
+                    today ? "text-indigo-400" : "text-gray-300"
                   }`}
                 >
-                  {format(day, "d")}
+                  {today ? (
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500 text-white text-sm">
+                      {format(day, "d")}
+                    </span>
+                  ) : (
+                    format(day, "d")
+                  )}
                 </div>
               </div>
 
               {/* Events */}
-              <div className="flex-1 p-1 space-y-1 overflow-y-auto">
+              <div className="flex-1 p-1.5 space-y-1 overflow-y-auto">
                 {dayEvents.map((event) => (
                   <button
                     key={event.id}
                     onClick={() => setSelectedEvent(event)}
-                    className={`w-full text-left p-2 rounded text-xs transition-colors ${
+                    className={`w-full text-left px-2 py-1.5 rounded-md text-[11px] transition-all duration-150 group ${
                       event.type === "scheduled"
-                        ? "bg-purple-900/60 hover:bg-purple-800/60 border-l-2 border-purple-500"
+                        ? "bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20"
                         : event.type === "interval"
-                        ? "bg-cyan-900/60 hover:bg-cyan-800/60 border-l-2 border-cyan-500"
-                        : "bg-amber-900/60 hover:bg-amber-800/60 border-l-2 border-amber-500"
+                        ? "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20"
+                        : "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20"
                     }`}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <span
-                        className={`w-2 h-2 rounded-full ${
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                           event.status === "ok"
-                            ? "bg-green-400"
+                            ? "bg-emerald-400"
                             : event.status === "error"
-                            ? "bg-red-400"
-                            : "bg-gray-400"
+                            ? "bg-rose-400"
+                            : "bg-gray-500"
                         }`}
                       />
-                      <span className="font-medium truncate">{event.title}</span>
+                      <span className="font-medium truncate text-gray-200 group-hover:text-white">
+                        {event.title}
+                      </span>
                     </div>
-                    <div className="text-gray-400 mt-1">
+                    <div className="text-gray-500 mt-0.5 font-mono text-[10px]">
                       {format(event.start, "HH:mm")}
                     </div>
                   </button>
                 ))}
                 {dayEvents.length === 0 && (
-                  <div className="text-gray-600 text-xs text-center py-4">
-                    No events
+                  <div className="flex items-center justify-center h-full min-h-[60px]">
+                    <span className="text-gray-700 text-[10px]">No events</span>
                   </div>
                 )}
               </div>
@@ -238,59 +238,62 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
       {/* Event Detail Modal */}
       {selectedEvent && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="bg-gray-800 rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
+            className="glass-strong rounded-xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto animate-slide-up shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-xl font-semibold text-white">
-                {selectedEvent.title}
-              </h3>
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="text-base font-semibold text-white">
+                  {selectedEvent.title}
+                </h3>
+                <div className="flex items-center gap-2 mt-2">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                      selectedEvent.type === "scheduled"
+                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                        : selectedEvent.type === "interval"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                        : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    }`}
+                  >
+                    {selectedEvent.type}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                      selectedEvent.status === "ok"
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                        : selectedEvent.status === "error"
+                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                        : "bg-gray-500/20 text-gray-400 border border-gray-500/30"
+                    }`}
+                  >
+                    {selectedEvent.status}
+                  </span>
+                  {!selectedEvent.job.enabled && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-500/20 text-gray-400 border border-gray-500/30">
+                      disabled
+                    </span>
+                  )}
+                </div>
+              </div>
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="text-gray-400 hover:text-white text-2xl leading-none"
+                className="p-1 rounded-md text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
               >
-                ×
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`px-2 py-1 rounded text-xs ${
-                    selectedEvent.type === "scheduled"
-                      ? "bg-purple-700"
-                      : selectedEvent.type === "interval"
-                      ? "bg-cyan-700"
-                      : "bg-amber-700"
-                  }`}
-                >
-                  {selectedEvent.type}
-                </span>
-                <span
-                  className={`px-2 py-1 rounded text-xs ${
-                    selectedEvent.status === "ok"
-                      ? "bg-green-700"
-                      : selectedEvent.status === "error"
-                      ? "bg-red-700"
-                      : "bg-gray-700"
-                  }`}
-                >
-                  {selectedEvent.status}
-                </span>
-                {!selectedEvent.job.enabled && (
-                  <span className="px-2 py-1 rounded text-xs bg-gray-700">
-                    disabled
-                  </span>
-                )}
-              </div>
-
+            <div className="space-y-4 text-[13px]">
               <div>
-                <div className="text-gray-400">Schedule</div>
-                <div className="text-white">
+                <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Schedule</div>
+                <div className="text-gray-200 font-mono text-xs">
                   {selectedEvent.job.scheduleKind === "cron"
                     ? `${selectedEvent.job.scheduleExpr} (${selectedEvent.job.timezone || "UTC"})`
                     : selectedEvent.job.scheduleKind === "every"
@@ -300,8 +303,8 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
               </div>
 
               <div>
-                <div className="text-gray-400">Next Run</div>
-                <div className="text-white">
+                <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Next Run</div>
+                <div className="text-gray-200 text-xs">
                   {selectedEvent.job.nextRunAtMs
                     ? format(new Date(selectedEvent.job.nextRunAtMs), "PPpp")
                     : "N/A"}
@@ -310,8 +313,8 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
 
               {selectedEvent.job.lastRunAtMs && (
                 <div>
-                  <div className="text-gray-400">Last Run</div>
-                  <div className="text-white">
+                  <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Last Run</div>
+                  <div className="text-gray-200 text-xs">
                     {format(new Date(selectedEvent.job.lastRunAtMs), "PPpp")}
                   </div>
                 </div>
@@ -319,8 +322,8 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
 
               {selectedEvent.job.lastError && (
                 <div>
-                  <div className="text-gray-400">Last Error</div>
-                  <div className="text-red-400 text-xs font-mono bg-red-900/20 p-2 rounded">
+                  <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Last Error</div>
+                  <div className="text-rose-300 text-xs font-mono bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg">
                     {selectedEvent.job.lastError}
                   </div>
                 </div>
@@ -328,8 +331,8 @@ export function Calendar({ jobs, loading, onRefresh }: CalendarProps) {
 
               {selectedEvent.job.payloadText && (
                 <div>
-                  <div className="text-gray-400">Payload</div>
-                  <div className="text-gray-300 text-xs font-mono bg-gray-900 p-2 rounded whitespace-pre-wrap">
+                  <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Payload</div>
+                  <div className="text-gray-300 text-xs font-mono bg-white/[0.03] border border-white/[0.06] p-2.5 rounded-lg whitespace-pre-wrap">
                     {selectedEvent.job.payloadText.slice(0, 500)}
                     {selectedEvent.job.payloadText.length > 500 && "..."}
                   </div>
