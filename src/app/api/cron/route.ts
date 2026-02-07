@@ -3,6 +3,29 @@ import { NextResponse } from "next/server";
 const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:8080";
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 
+interface CronJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  schedule?: {
+    kind?: string;
+    expr?: string;
+    everyMs?: number;
+    tz?: string;
+  };
+  state?: {
+    nextRunAtMs?: number;
+    lastRunAtMs?: number;
+    lastStatus?: string;
+    lastError?: string;
+  };
+  payload?: {
+    kind?: string;
+    text?: string;
+    message?: string;
+  };
+}
+
 export async function GET() {
   try {
     const res = await fetch(`${GATEWAY_URL}/rpc`, {
@@ -24,7 +47,7 @@ export async function GET() {
     const data = await res.json();
     
     // Transform cron jobs for the frontend
-    const jobs = (data.result?.jobs || []).map((job: any) => ({
+    const jobs = (data.result?.jobs || []).map((job: CronJob) => ({
       id: job.id,
       name: job.name,
       enabled: job.enabled,

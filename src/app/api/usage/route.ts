@@ -3,6 +3,15 @@ import { NextResponse } from "next/server";
 const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:8080";
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 
+interface Session {
+  usage?: {
+    totalTokens?: number;
+    cost?: {
+      total?: number;
+    };
+  };
+}
+
 export async function GET() {
   try {
     const res = await fetch(`${GATEWAY_URL}/rpc`, {
@@ -28,7 +37,7 @@ export async function GET() {
     let totalTokens = 0;
     let totalCost = 0;
 
-    sessions.forEach((session: any) => {
+    sessions.forEach((session: Session) => {
       if (session.usage) {
         totalTokens += session.usage.totalTokens || 0;
         totalCost += session.usage.cost?.total || 0;
