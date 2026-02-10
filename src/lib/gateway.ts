@@ -3,10 +3,14 @@ import WebSocket from "ws";
 const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:8080";
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 
-// Convert HTTP URL to WebSocket URL
+// Convert URL to WebSocket URL, preserving security
 function getWsUrl(): string {
   const url = new URL(GATEWAY_URL);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  if (url.protocol === "https:" || url.protocol === "wss:") {
+    url.protocol = "wss:";
+  } else {
+    url.protocol = "ws:";
+  }
   return url.toString();
 }
 
